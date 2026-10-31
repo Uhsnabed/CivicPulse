@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from hashlib import sha256
+import logging
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from app.services.gemini import analyze_evidence
 from app.services.supabase import get_supabase_client
 
 router = APIRouter(prefix="/reports")
+logger = logging.getLogger(__name__)
 
 MAX_EVIDENCE_BYTES = 10 * 1024 * 1024
 ALLOWED_MEDIA_TYPES = {
@@ -64,7 +66,8 @@ def analyze_report(reference: str) -> EvidenceAnalysisResponse:
     except RuntimeError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
-        raise HTTPException(status_code=502, detail="Evidence analysis is temporarily unavailable. Please try once later.") from error
+        logger.exception("Evidence analysis failed for report %s", reference)
+        raise HTTPException(status_code=502, detail=f"Analysis setup failed: {type(error).__name__}: {str(error)[:220]}") from error
 
 
 @router.post("", response_model=ReportCreateResponse, status_code=status.HTTP_201_CREATED, summary="Submit consented civic evidence")
