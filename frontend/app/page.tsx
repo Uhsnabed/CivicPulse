@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ReportComposer } from "../components/ReportComposer";
 
 type HealthState = "checking" | "connected" | "unavailable";
 
@@ -40,7 +41,7 @@ export default function HomePage() {
             <h1 className="rise rise-delay mt-5 max-w-4xl text-5xl font-black leading-[.94] tracking-[-0.055em] sm:text-6xl md:text-8xl">Public problems deserve <span className="text-[#0b7665]">public proof.</span></h1>
             <p className="rise rise-delay-2 mt-7 max-w-xl text-lg leading-8 text-[#46585d] md:text-xl">CivicPulse turns a citizen report into an evidence-backed case packet—with consent, context, confidence and a clear explanation of what the system knows.</p>
             <div className="rise rise-delay-2 mt-9 flex flex-wrap gap-3">
-              <a href="#how-it-works" className="inline-flex items-center gap-2 rounded-full bg-[#071d22] px-6 py-3.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#0b7665]">See the evidence chain <ArrowIcon /></a>
+              <a href="#report" className="inline-flex items-center gap-2 rounded-full bg-[#071d22] px-6 py-3.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#0b7665]">Report a local issue <ArrowIcon /></a>
               <button onClick={() => setShowPrinciples((value) => !value)} className="rounded-full border border-black/15 bg-white/70 px-6 py-3.5 text-sm font-bold transition hover:border-[#0b7665]" aria-expanded={showPrinciples}>Why it is trustworthy</button>
             </div>
           </div>
@@ -57,6 +58,7 @@ export default function HomePage() {
       <div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0b7665]">The evidence chain</p><h2 className="mt-4 text-4xl font-black tracking-[-0.04em] md:text-5xl">Built to show its work.</h2><p className="mt-5 text-lg leading-8 text-[#627278]">Every step adds useful context without replacing a citizen’s account with an opaque AI decision.</p></div>
       <div className="mt-12 grid gap-4 md:grid-cols-3">{evidenceSteps.map(([number, title, description]) => <article key={number} className="group rounded-3xl border border-black/10 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-[#0b7665] hover:shadow-xl hover:shadow-[#0b7665]/10"><p className="text-sm font-black text-[#0b7665]">{number}</p><h3 className="mt-12 text-2xl font-black">{title}</h3><p className="mt-3 leading-7 text-[#627278]">{description}</p><div className="mt-8 text-[#0b7665] transition group-hover:translate-x-1"><ArrowIcon /></div></article>)}</div>
     </section>
+    <ReportComposer />
     <footer className="border-t border-black/10 bg-[#071d22] px-6 py-8 text-sm text-white/60"><div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 md:px-4"><span className="font-bold tracking-wide text-white">CIVICPULSE</span><span>Evidence first. Privacy aware. No fabricated data.</span></div></footer>
   </main>;
 }
