@@ -39,3 +39,14 @@ class PublicSignal(BaseModel):
     summary: str
     routing_category: str
     area_hint: str
+
+
+class ReportTimelineEvent(BaseModel):
+    event_type: str
+    created_at: datetime
+
+
+class ReportTimelineResponse(BaseModel):
+    reference: str
+    status: str
+    events: list[ReportTimelineEvent]

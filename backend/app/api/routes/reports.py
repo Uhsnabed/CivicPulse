@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import get_settings
-from app.schemas.reports import EvidenceAnalysis, EvidenceAnalysisResponse, PublicSignal, ReportCreateResponse
+from app.schemas.reports import EvidenceAnalysis, EvidenceAnalysisResponse, PublicSignal, ReportCreateResponse, ReportTimelineEvent, ReportTimelineResponse
 from app.services.gemini import analyze_evidence
 from app.services.supabase import get_supabase_client
 
@@ -64,6 +64,25 @@ def list_public_signals() -> list[PublicSignal]:
     except Exception as error:
         logger.exception("Could not load public signals")
         raise HTTPException(status_code=502, detail="Public signal board is temporarily unavailable.") from error
+
+
+@router.get("/{reference}/timeline", response_model=ReportTimelineResponse, summary="Show a report's privacy-safe audit timeline")
+def get_report_timeline(reference: str) -> ReportTimelineResponse:
+    try:
+        client = get_supabase_client()
+        report = client.table("civic_reports").select("id, public_reference, status").eq("public_reference", reference).limit(1).execute()
+        if not report.data:
+            raise HTTPException(status_code=404, detail="Report not found.")
+        events = client.table("report_events").select("event_type, created_at").eq("report_id", report.data[0]["id"]).order("created_at").execute()
+        return ReportTimelineResponse(
+            reference=report.data[0]["public_reference"], status=report.data[0]["status"],
+            events=[ReportTimelineEvent.model_validate(event) for event in events.data],
+        )
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.exception("Could not load report timeline")
+        raise HTTPException(status_code=502, detail="Case timeline is temporarily unavailable.") from error
 
 
 @router.post("/{reference}/analyze", response_model=EvidenceAnalysisResponse, summary="Analyze saved evidence once with Gemini")
