@@ -6,7 +6,8 @@ from uuid import uuid4
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import get_settings
-from app.schemas.reports import ReportCreateResponse
+from app.schemas.reports import EvidenceAnalysis, EvidenceAnalysisResponse, ReportCreateResponse
+from app.services.gemini import analyze_evidence
 from app.services.supabase import get_supabase_client
 
 router = APIRouter(prefix="/reports")
@@ -32,6 +33,38 @@ def _validate_location(latitude: float | None, longitude: float | None) -> None:
         raise HTTPException(status_code=422, detail="Latitude must be between -90 and 90.")
     if longitude is not None and not -180 <= longitude <= 180:
         raise HTTPException(status_code=422, detail="Longitude must be between -180 and 180.")
+
+
+@router.post("/{reference}/analyze", response_model=EvidenceAnalysisResponse, summary="Analyze saved evidence once with Gemini")
+def analyze_report(reference: str) -> EvidenceAnalysisResponse:
+    """An explicit, cached analysis. Submitting a report never invokes Gemini."""
+    try:
+        client = get_supabase_client()
+        result = client.table("civic_reports").select("id, public_reference, citizen_description, ai_analysis").eq("public_reference", reference).limit(1).execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Report not found.")
+        report = result.data[0]
+        if report["ai_analysis"]:
+            return EvidenceAnalysisResponse(reference=report["public_reference"], cached=True, analysis=EvidenceAnalysis.model_validate(report["ai_analysis"]))
+
+        evidence = client.table("report_evidence").select("storage_path").eq("report_id", report["id"]).eq("evidence_type", "photo").limit(1).execute()
+        image_bytes = None
+        if evidence.data and evidence.data[0]["storage_path"]:
+            image_bytes = client.storage.from_(get_settings().supabase_evidence_bucket).download(evidence.data[0]["storage_path"])
+
+        analysis = analyze_evidence(report["citizen_description"], image_bytes)
+        client.table("civic_reports").update({"ai_analysis": analysis.model_dump()}).eq("id", report["id"]).execute()
+        client.table("report_events").insert({
+            "report_id": report["id"], "event_type": "ai_evidence_analysis_completed", "actor_type": "system",
+            "details": {"provider": "gemini", "model": get_settings().gemini_model, "used_photo": bool(image_bytes)},
+        }).execute()
+        return EvidenceAnalysisResponse(reference=report["public_reference"], cached=False, analysis=analysis)
+    except HTTPException:
+        raise
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=502, detail="Evidence analysis is temporarily unavailable. Please try once later.") from error
 
 
 @router.post("", response_model=ReportCreateResponse, status_code=status.HTTP_201_CREATED, summary="Submit consented civic evidence")
