@@ -19,7 +19,7 @@ export default function HomePage() {
   const [health, setHealth] = useState<HealthState>("checking");
   const [showPrinciples, setShowPrinciples] = useState(false);
   useEffect(() => {
-    const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1"}/health`;
+    const endpoint = "/api/v1/health";
     fetch(endpoint).then((response) => { if (!response.ok) throw new Error(); setHealth("connected"); }).catch(() => setHealth("unavailable"));
   }, []);
 

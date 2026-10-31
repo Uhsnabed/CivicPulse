@@ -45,10 +45,10 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
-uvicorn app.main:app --reload --port 8000
+..\scripts\start-backend.ps1
 ```
 
-Visit `http://localhost:8000/docs` for the generated API documentation.
+Visit `http://localhost:8010/docs` for the generated API documentation.
 
 ### Frontend
 

@@ -29,7 +29,7 @@ export function ReportComposer() {
     const formData = new FormData(event.currentTarget);
     if (position) { formData.set("latitude", String(position.latitude)); formData.set("longitude", String(position.longitude)); formData.set("location_accuracy_meters", String(position.accuracy)); }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1"}/reports`, { method: "POST", body: formData });
+      const response = await fetch("/api/v1/reports", { method: "POST", body: formData });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail ?? "Your report could not be submitted.");
       setSubmission(body); formRef.current?.reset(); setPosition(null); setLocationMessage("Location is optional, and used only with your consent.");
