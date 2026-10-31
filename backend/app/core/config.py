@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     supabase_evidence_bucket: str = "civic-evidence"
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.8-flash"
+    gemini_model: str = "gemini-flash-lite-latest"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
