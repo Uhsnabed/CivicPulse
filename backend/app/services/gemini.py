@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.schemas.reports import EvidenceAnalysis
 
 
-ANALYSIS_INSTRUCTIONS = """You are CivicPulse's evidence summarizer. Analyze only the supplied citizen description and attached image, if present. Do not identify people, infer protected attributes, or claim an issue is verified. Confidence means how well the supplied material supports your summary, not whether the incident is true. If evidence is weak, use insufficient_evidence, low severity, and state what is missing. Do not name a government department. Keep every list item short and factual. Return the required JSON only."""
+ANALYSIS_INSTRUCTIONS = """You are CivicPulse's evidence summarizer. Analyze only the supplied citizen description and attached image, if present. Do not identify people, infer protected attributes, or claim an issue is verified. Confidence means how well the supplied material supports your summary, not whether the incident is true. If evidence is weak, use insufficient_evidence, low severity, and state what is missing. Do not name a government department. Return JSON only, with exactly: issue_category (electrical|road_damage|water_leak|waste|streetlight|flooding|air_quality|other|insufficient_evidence), severity (low|medium|high|urgent), summary (under 240 chars), visible_evidence (max 4 strings), missing_evidence (max 3 strings), confidence (0 to 1), routing_category, and safety_note."""
 
 
 def _downscale_image(image_bytes: bytes) -> bytes:
@@ -37,7 +37,6 @@ def analyze_evidence(description: str | None, image_bytes: bytes | None) -> Evid
         config=types.GenerateContentConfig(
             system_instruction=ANALYSIS_INSTRUCTIONS,
             response_mime_type="application/json",
-            response_schema=EvidenceAnalysis,
             temperature=0.1,
             max_output_tokens=300,
         ),

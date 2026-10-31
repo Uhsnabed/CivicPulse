@@ -46,8 +46,11 @@ export function ReportComposer() {
     setError(null); setIsAnalyzing(true);
     try {
       const response = await fetch(`/api/v1/reports/${submission.reference}/analyze`, { method: "POST" });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.detail ?? "Evidence analysis could not be completed.");
+      const responseText = await response.text();
+      let body: { detail?: string; analysis?: Analysis; cached?: boolean } = {};
+      try { body = JSON.parse(responseText); } catch { /* A proxy/server failure may be plain text. */ }
+      if (!response.ok) throw new Error(body.detail ?? `Evidence analysis failed (HTTP ${response.status}).`);
+      if (!body.analysis) throw new Error("Analysis completed without a usable result.");
       setAnalysis(body.analysis); setAnalysisCached(Boolean(body.cached));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Evidence analysis could not be completed."); }
     finally { setIsAnalyzing(false); }
