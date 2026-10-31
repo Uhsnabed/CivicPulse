@@ -28,3 +28,14 @@ class EvidenceAnalysisResponse(BaseModel):
     reference: str
     cached: bool
     analysis: EvidenceAnalysis
+
+
+class PublicSignal(BaseModel):
+    reference: str
+    submitted_at: datetime
+    status: str
+    issue_category: str
+    severity: str
+    summary: str
+    routing_category: str
+    area_hint: str

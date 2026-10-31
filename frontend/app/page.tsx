@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ReportComposer } from "../components/ReportComposer";
+import { PublicSignalBoard } from "../components/PublicSignalBoard";
 
 type HealthState = "checking" | "connected" | "unavailable";
 
@@ -33,7 +34,7 @@ export default function HomePage() {
       <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-7 md:px-10 md:pb-28">
         <nav className="flex items-center justify-between" aria-label="Primary navigation">
           <a href="#top" className="flex items-center gap-2 text-sm font-black tracking-[0.16em]"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#071d22] text-[#b8f3d0]">C</span>CIVICPULSE</a>
-          <a href="#how-it-works" className="rounded-full border border-black/15 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-widest transition hover:border-[#0b7665] hover:text-[#0b7665]">How it works</a>
+          <div className="flex gap-2"><a href="#public-signals" className="rounded-full border border-black/15 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-widest transition hover:border-[#0b7665] hover:text-[#0b7665]">Public board</a><a href="#how-it-works" className="rounded-full border border-black/15 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-widest transition hover:border-[#0b7665] hover:text-[#0b7665]">How it works</a></div>
         </nav>
         <div id="top" className="mt-16 grid items-end gap-12 lg:grid-cols-[1.28fr_.72fr] lg:gap-20">
           <div>
@@ -59,6 +60,7 @@ export default function HomePage() {
       <div className="mt-12 grid gap-4 md:grid-cols-3">{evidenceSteps.map(([number, title, description]) => <article key={number} className="group rounded-3xl border border-black/10 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-[#0b7665] hover:shadow-xl hover:shadow-[#0b7665]/10"><p className="text-sm font-black text-[#0b7665]">{number}</p><h3 className="mt-12 text-2xl font-black">{title}</h3><p className="mt-3 leading-7 text-[#627278]">{description}</p><div className="mt-8 text-[#0b7665] transition group-hover:translate-x-1"><ArrowIcon /></div></article>)}</div>
     </section>
     <ReportComposer />
+    <PublicSignalBoard />
     <footer className="border-t border-black/10 bg-[#071d22] px-6 py-8 text-sm text-white/60"><div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 md:px-4"><span className="font-bold tracking-wide text-white">CIVICPULSE</span><span>Evidence first. Privacy aware. No fabricated data.</span></div></footer>
   </main>;
 }

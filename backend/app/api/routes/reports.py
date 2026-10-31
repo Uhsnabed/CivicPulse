@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import get_settings
-from app.schemas.reports import EvidenceAnalysis, EvidenceAnalysisResponse, ReportCreateResponse
+from app.schemas.reports import EvidenceAnalysis, EvidenceAnalysisResponse, PublicSignal, ReportCreateResponse
 from app.services.gemini import analyze_evidence
 from app.services.supabase import get_supabase_client
 
@@ -35,6 +35,35 @@ def _validate_location(latitude: float | None, longitude: float | None) -> None:
         raise HTTPException(status_code=422, detail="Latitude must be between -90 and 90.")
     if longitude is not None and not -180 <= longitude <= 180:
         raise HTTPException(status_code=422, detail="Longitude must be between -180 and 180.")
+
+
+def _area_hint(latitude: float | None, longitude: float | None) -> str:
+    if latitude is None or longitude is None:
+        return "Area withheld by reporter"
+    # A rounded grid label signals locality without exposing an exact address or coordinates.
+    return f"Approximate {round(latitude, 2):.2f}, {round(longitude, 2):.2f} area"
+
+
+@router.get("/public-signals", response_model=list[PublicSignal], summary="List anonymized citizen-approved public signals")
+def list_public_signals() -> list[PublicSignal]:
+    """No media, description, or exact coordinates leave the private evidence store."""
+    try:
+        client = get_supabase_client()
+        result = client.table("civic_reports").select(
+            "public_reference, status, ai_analysis, created_at, latitude, longitude"
+        ).eq("public_display_consent", True).not_.is_("ai_analysis", "null").order("created_at", desc=True).limit(50).execute()
+        signals: list[PublicSignal] = []
+        for report in result.data:
+            analysis = EvidenceAnalysis.model_validate(report["ai_analysis"])
+            signals.append(PublicSignal(
+                reference=report["public_reference"], submitted_at=report["created_at"], status=report["status"],
+                issue_category=analysis.issue_category, severity=analysis.severity, summary=analysis.summary,
+                routing_category=analysis.routing_category, area_hint=_area_hint(report["latitude"], report["longitude"]),
+            ))
+        return signals
+    except Exception as error:
+        logger.exception("Could not load public signals")
+        raise HTTPException(status_code=502, detail="Public signal board is temporarily unavailable.") from error
 
 
 @router.post("/{reference}/analyze", response_model=EvidenceAnalysisResponse, summary="Analyze saved evidence once with Gemini")
@@ -78,6 +107,7 @@ async def create_report(
     longitude: float | None = Form(default=None),
     location_accuracy_meters: float | None = Form(default=None, ge=0),
     consent_to_process: bool = Form(default=False),
+    public_display_consent: bool = Form(default=False),
     evidence: list[UploadFile] | None = File(default=None),
 ) -> ReportCreateResponse:
     """Persist a genuine citizen report and private evidence; no AI call is made here."""
@@ -100,6 +130,7 @@ async def create_report(
             "longitude": longitude,
             "location_accuracy_meters": location_accuracy_meters,
             "consent_to_process": True,
+            "public_display_consent": public_display_consent,
             "consent_recorded_at": created_at.isoformat(),
         }).execute()
         report = report_result.data[0]
