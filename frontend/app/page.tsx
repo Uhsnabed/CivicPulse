@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ReportComposer } from "../components/ReportComposer";
 import { PublicSignalBoard } from "../components/PublicSignalBoard";
 import { ReviewerDashboard } from "../components/ReviewerDashboard";
@@ -33,25 +33,31 @@ export default function HomePage() {
   const [health, setHealth] = useState<HealthState>("checking");
   const [showPrinciples, setShowPrinciples] = useState(false);
 
-  useEffect(() => {
-    const endpoint = "/api/v1/health";
-
-    fetch(endpoint)
-      .then((response) => {
-        if (!response.ok) throw new Error();
-        setHealth("connected");
-      })
-      .catch(() => setHealth("unavailable"));
+  const checkApiHealth = useCallback(async () => {
+    setHealth("checking");
+    try {
+      const response = await fetch("/api/v1/health", {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Health check failed");
+      setHealth("connected");
+    } catch {
+      setHealth("unavailable");
+    }
   }, []);
+
+  useEffect(() => {
+    void checkApiHealth();
+  }, [checkApiHealth]);
 
   const isLive = health === "connected";
 
   const statusCopy =
     health === "checking"
-      ? "Connecting to CivicPulse API"
+      ? "Checking production API"
       : isLive
-        ? "CivicPulse API is live"
-        : "API is temporarily unavailable";
+        ? "Production API is online"
+        : "Production API is unreachable";
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f6f0] text-[#071d22]">
@@ -145,7 +151,7 @@ export default function HomePage() {
                   System signal
                 </p>
                 <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold">
-                  MODULE 01
+                  LIVE STATUS
                 </span>
               </div>
 
@@ -159,10 +165,21 @@ export default function HomePage() {
                 <div>
                   <p className="text-xl font-bold">{statusCopy}</p>
                   <p className="mt-2 text-sm leading-6 text-white/60">
-                    {isLive
-                      ? "The client and API are communicating locally."
-                      : "Start the FastAPI service to enable live checks."}
+                    {health === "checking"
+                      ? "Checking the live CivicPulse backend connection."
+                      : isLive
+                        ? "The website is successfully connected to the CivicPulse backend."
+                        : "The backend did not respond. It may be waking up; try checking again in a moment."}
                   </p>
+                  {health === "unavailable" && (
+                    <button
+                      type="button"
+                      onClick={() => void checkApiHealth()}
+                      className="mt-3 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10"
+                    >
+                      Retry connection
+                    </button>
+                  )}
                 </div>
               </div>
 
