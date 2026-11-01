@@ -1,7 +1,8 @@
 
 /** @type {import('next').NextConfig} */
 
-const backendUrl = "https://civicpulse-api-acun.onrender.com";
+const backendUrl =
+  process.env.BACKEND_URL || "http://127.0.0.1:8010";
 
 const nextConfig = {
   reactStrictMode: true,
