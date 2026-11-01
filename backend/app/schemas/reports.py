@@ -24,10 +24,17 @@ class EvidenceAnalysis(BaseModel):
     safety_note: str = Field(max_length=180)
 
 
+class RoutingRecommendation(BaseModel):
+    service_queue: str
+    status: Literal["awaiting_civic_review"]
+    reason: str
+
+
 class EvidenceAnalysisResponse(BaseModel):
     reference: str
     cached: bool
     analysis: EvidenceAnalysis
+    routing_recommendation: RoutingRecommendation | None = None
 
 
 class PublicSignal(BaseModel):

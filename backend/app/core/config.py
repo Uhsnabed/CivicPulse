@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     api_prefix: str = "/api/v1"
     frontend_origins: list[str] | str = ["http://localhost:3000"]
-
+    reviewer_user_ids: str = ""
     supabase_url: str | None = None
     supabase_anon_key: str | None = None
     supabase_service_role_key: str | None = None

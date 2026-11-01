@@ -26,3 +26,14 @@ Thumbs.db
 
 # User-uploaded evidence is stored in Supabase, never in Git
 uploads/
+# Temporary reviewer credentials
+.reviewer_token*
+*.token
+*.pem
+
+# Additional Python tooling
+.mypy_cache/
+
+# Build output
+dist/
+build/

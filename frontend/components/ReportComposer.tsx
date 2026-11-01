@@ -5,9 +5,10 @@ import { ChangeEvent, FormEvent, useRef, useState } from "react";
 type Position = { latitude: number; longitude: number; accuracy: number };
 type Submission = { reference: string; evidence_count: number };
 type Analysis = { issue_category: string; severity: string; summary: string; visible_evidence: string[]; missing_evidence: string[]; confidence: number; routing_category: string; safety_note: string };
+type RoutingRecommendation = { service_queue: string; status: string; reason: string };
 type TimelineEvent = { event_type: string; created_at: string };
 
-const eventLabels: Record<string, string> = { report_submitted: "Citizen report submitted", ai_evidence_analysis_completed: "AI evidence summary saved" };
+const eventLabels: Record<string, string> = { report_submitted: "Citizen report submitted", ai_evidence_analysis_completed: "AI evidence summary saved", routing_recommendation_created: "Routing recommendation created" };
 
 export function ReportComposer() {
   const [position, setPosition] = useState<Position | null>(null);
@@ -20,6 +21,7 @@ export function ReportComposer() {
   const [analysisCached, setAnalysisCached] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [recommendation, setRecommendation] = useState<RoutingRecommendation | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   function captureLocation() {
@@ -33,7 +35,7 @@ export function ReportComposer() {
   }
 
   async function submitReport(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(null); setSubmission(null); setAnalysis(null); setIsSubmitting(true);
+    event.preventDefault(); setError(null); setSubmission(null); setAnalysis(null); setRecommendation(null); setIsSubmitting(true);
     const formData = new FormData(event.currentTarget);
     if (position) { formData.set("latitude", String(position.latitude)); formData.set("longitude", String(position.longitude)); formData.set("location_accuracy_meters", String(position.accuracy)); }
     try {
@@ -59,11 +61,11 @@ export function ReportComposer() {
     try {
       const response = await fetch(`/api/v1/reports/${submission.reference}/analyze`, { method: "POST" });
       const responseText = await response.text();
-      let body: { detail?: string; analysis?: Analysis; cached?: boolean } = {};
+      let body: { detail?: string; analysis?: Analysis; cached?: boolean; routing_recommendation?: RoutingRecommendation } = {};
       try { body = JSON.parse(responseText); } catch { /* A proxy/server failure may be plain text. */ }
       if (!response.ok) throw new Error(body.detail ?? `Evidence analysis failed (HTTP ${response.status}).`);
       if (!body.analysis) throw new Error("Analysis completed without a usable result.");
-      setAnalysis(body.analysis); setAnalysisCached(Boolean(body.cached)); void loadTimeline(submission.reference);
+      setAnalysis(body.analysis); setRecommendation(body.routing_recommendation ?? null); setAnalysisCached(Boolean(body.cached)); void loadTimeline(submission.reference);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Evidence analysis could not be completed."); }
     finally { setIsAnalyzing(false); }
   }
@@ -82,6 +84,7 @@ export function ReportComposer() {
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
           {submission && <div role="status" className="rounded-xl bg-[#dff7eb] p-4 text-sm text-[#16483b]"><p>Report saved. Your live case reference is <strong>{submission.reference}</strong>. {submission.evidence_count} evidence file(s) attached.</p><button type="button" onClick={analyzeSavedEvidence} disabled={isAnalyzing || Boolean(analysis)} className="mt-3 rounded-full bg-[#0b7665] px-4 py-2 text-xs font-bold text-white disabled:opacity-60">{isAnalyzing ? "Analyzing once…" : analysis ? "Analysis saved" : "Analyze evidence with Gemini (one call)"}</button></div>}
           {analysis && <div className="rounded-xl border border-[#0b7665]/25 bg-[#f4fffa] p-4 text-sm text-[#16483b]"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold capitalize">{analysis.issue_category.replace("_", " ")} · {analysis.severity} priority</p><span className="text-xs">Evidence support: {Math.round(analysis.confidence * 100)}%</span></div><p className="mt-2 leading-6">{analysis.summary}</p><p className="mt-2 text-xs"><strong>Routing category:</strong> {analysis.routing_category}</p>{analysis.visible_evidence.length > 0 && <p className="mt-2 text-xs"><strong>Observed:</strong> {analysis.visible_evidence.join(" · ")}</p>}{analysis.missing_evidence.length > 0 && <p className="mt-2 text-xs"><strong>Still needed:</strong> {analysis.missing_evidence.join(" · ")}</p>}<p className="mt-3 text-xs text-[#46605a]">{analysis.safety_note} {analysisCached ? "Saved result shown; Gemini was not called again." : "This result is now cached for this case."}</p></div>}
+          {recommendation && <div className="rounded-xl border border-[#ffcf66] bg-[#fff9e8] p-4 text-sm text-[#473a13]"><p className="font-bold">Recommended next step: {recommendation.service_queue}</p><p className="mt-1">{recommendation.reason}</p><p className="mt-2 text-xs font-bold uppercase tracking-wide">Status: Awaiting civic review — not yet sent to an authority.</p></div>}
           {submission && timeline.length > 0 && <div className="rounded-xl border border-black/10 bg-white p-4 text-sm"><p className="font-bold">Case activity</p><ol className="mt-3 space-y-3 border-l-2 border-[#b8f3d0] pl-4">{timeline.map((event) => <li key={`${event.event_type}-${event.created_at}`}><p className="font-semibold text-[#16483b]">{eventLabels[event.event_type] ?? event.event_type}</p><p className="text-xs text-[#627278]">{new Date(event.created_at).toLocaleString()}</p></li>)}</ol></div>}
         </div>
       </form>

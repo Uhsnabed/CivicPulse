@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import get_settings
-from app.schemas.reports import EvidenceAnalysis, EvidenceAnalysisResponse, PublicSignal, ReportCreateResponse, ReportTimelineEvent, ReportTimelineResponse
+from app.schemas.reports import EvidenceAnalysis, EvidenceAnalysisResponse, PublicSignal, ReportCreateResponse, ReportTimelineEvent, ReportTimelineResponse, RoutingRecommendation
 from app.services.gemini import analyze_evidence
 from app.services.supabase import get_supabase_client
 
@@ -42,6 +42,11 @@ def _area_hint(latitude: float | None, longitude: float | None) -> str:
         return "Area withheld by reporter"
     # A rounded grid label signals locality without exposing an exact address or coordinates.
     return f"Approximate {round(latitude, 2):.2f}, {round(longitude, 2):.2f} area"
+
+
+def _routing_recommendation(analysis: EvidenceAnalysis) -> RoutingRecommendation:
+    queue = analysis.routing_category.strip() or "Municipal civic service desk"
+    return RoutingRecommendation(service_queue=queue, status="awaiting_civic_review", reason=f"Suggested from the submitted evidence: {analysis.summary}")
 
 
 @router.get("/public-signals", response_model=list[PublicSignal], summary="List anonymized citizen-approved public signals")
@@ -90,12 +95,12 @@ def analyze_report(reference: str) -> EvidenceAnalysisResponse:
     """An explicit, cached analysis. Submitting a report never invokes Gemini."""
     try:
         client = get_supabase_client()
-        result = client.table("civic_reports").select("id, public_reference, citizen_description, ai_analysis").eq("public_reference", reference).limit(1).execute()
+        result = client.table("civic_reports").select("id, public_reference, citizen_description, ai_analysis, routing_recommendation").eq("public_reference", reference).limit(1).execute()
         if not result.data:
             raise HTTPException(status_code=404, detail="Report not found.")
         report = result.data[0]
         if report["ai_analysis"]:
-            return EvidenceAnalysisResponse(reference=report["public_reference"], cached=True, analysis=EvidenceAnalysis.model_validate(report["ai_analysis"]))
+            return EvidenceAnalysisResponse(reference=report["public_reference"], cached=True, analysis=EvidenceAnalysis.model_validate(report["ai_analysis"]), routing_recommendation=report["routing_recommendation"])
 
         evidence = client.table("report_evidence").select("storage_path").eq("report_id", report["id"]).eq("evidence_type", "photo").limit(1).execute()
         image_bytes = None
@@ -103,12 +108,14 @@ def analyze_report(reference: str) -> EvidenceAnalysisResponse:
             image_bytes = client.storage.from_(get_settings().supabase_evidence_bucket).download(evidence.data[0]["storage_path"])
 
         analysis = analyze_evidence(report["citizen_description"], image_bytes)
-        client.table("civic_reports").update({"ai_analysis": analysis.model_dump()}).eq("id", report["id"]).execute()
+        recommendation = _routing_recommendation(analysis)
+        client.table("civic_reports").update({"ai_analysis": analysis.model_dump(), "routing_recommendation": recommendation.model_dump()}).eq("id", report["id"]).execute()
         client.table("report_events").insert({
             "report_id": report["id"], "event_type": "ai_evidence_analysis_completed", "actor_type": "system",
             "details": {"provider": "gemini", "model": get_settings().gemini_model, "used_photo": bool(image_bytes)},
         }).execute()
-        return EvidenceAnalysisResponse(reference=report["public_reference"], cached=False, analysis=analysis)
+        client.table("report_events").insert({"report_id": report["id"], "event_type": "routing_recommendation_created", "actor_type": "system", "details": {"status": "awaiting_civic_review"}}).execute()
+        return EvidenceAnalysisResponse(reference=report["public_reference"], cached=False, analysis=analysis, routing_recommendation=recommendation)
     except HTTPException:
         raise
     except RuntimeError as error:
